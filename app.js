@@ -7,7 +7,7 @@ import * as llm from "./lib/llm.js";
 // 国内常见厂商预设（OpenAI 兼容 chat completions）。base_url 为空表示「自定义」。
 const PROVIDERS = [
   { id: "custom",  name: "自定义",         base_url: "",                          model: "" },
-  { id: "deepseek", name: "DeepSeek",      base_url: "https://api.deepseek.com/v1", model: "deepseek-chat" },
+  { id: "deepseek", name: "DeepSeek",      base_url: "https://api.deepseek.com", model: "deepseek-v4-flash" },
   { id: "MiniMax", name: "MiniMax",        base_url: "https://api.minimaxi.com/v1", model: "MiniMax-M2.7-highspeed" },
   { id: "qwen",   name: "通义千问 (Qwen)", base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" },
   { id: "glm",    name: "智谱 GLM",        base_url: "https://open.bigmodel.cn/api/paas/v4/", model: "glm-4-plus" },
