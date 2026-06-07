@@ -68,9 +68,8 @@ btnSave.addEventListener("click", saveSettings);
 btnCancel.addEventListener("click", closeSettings);
 btnExportLogs.addEventListener("click", () => logger.downloadLogs());
 
-settingsOverlay.addEventListener("click", (e) => {
-  if (e.target === settingsOverlay) closeSettings();
-});
+// 移除了「点遮罩关设置」监听 —— 误触频繁，用户在输入 API key/URL 时
+// 一旦点到遮罩就关掉，输入丢失。改为只有「保存」「取消」两个按钮可关闭。
 
 // ─── 主界面 ──────────────────────────────
 function escapeHtml(s) {
