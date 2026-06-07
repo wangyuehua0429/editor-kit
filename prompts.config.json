@@ -1,0 +1,14 @@
+{
+  "platforms": [
+    {"key": "wechat",      "name": "微信公众号", "prompt": "wechat.txt",      "enabled": true, "order": 1},
+    {"key": "weibo",       "name": "微博",       "prompt": "weibo.txt",       "enabled": true, "order": 2},
+    {"key": "xiaohongshu", "name": "小红书",     "prompt": "xiaohongshu.txt", "enabled": true, "order": 3},
+    {"key": "news",        "name": "新闻客户端", "prompt": "news.txt",        "enabled": true, "order": 4},
+    {"key": "paper",       "name": "传统报纸",   "prompt": "paper.txt",       "enabled": true, "order": 5}
+  ],
+  "polish": {
+    "prompt": "polish.txt",
+    "tones": ["平实", "中性", "严肃", "活泼"],
+    "default_tone": "中性"
+  }
+}
