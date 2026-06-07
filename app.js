@@ -177,6 +177,13 @@ function bindEditorEvents() {
     el.addEventListener("input", debounce(onChange, 500));
   });
 
+  // 模式切换时清空已有结果
+  document.querySelectorAll('input[name="mode"]').forEach((el) => {
+    el.addEventListener("change", () => {
+      document.getElementById("results").innerHTML = "";
+    });
+  });
+
   const btn = document.getElementById("btn-adapt");
   btn.addEventListener("click", onAdaptClick);
 }
