@@ -25,6 +25,12 @@ body {
   color: #fff;
 }
 .topbar-title { display: flex; flex-direction: column; gap: 2px; }
+.topbar-version {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0;
+}
 .topbar-handle {
   font-size: 0.85rem;
   font-weight: 400;
