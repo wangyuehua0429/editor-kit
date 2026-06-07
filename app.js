@@ -28,6 +28,7 @@ const btnSettings = document.getElementById("btn-settings");
 const btnSave = document.getElementById("btn-settings-save");
 const btnCancel = document.getElementById("btn-settings-cancel");
 const btnExportLogs = document.getElementById("btn-export-logs");
+const btnReset = document.getElementById("btn-reset");
 
 const inputApiKey = document.getElementById("setting-api-key");
 const inputBaseUrl = document.getElementById("setting-base-url");
@@ -67,6 +68,15 @@ btnSettings.addEventListener("click", openSettings);
 btnSave.addEventListener("click", saveSettings);
 btnCancel.addEventListener("click", closeSettings);
 btnExportLogs.addEventListener("click", () => logger.downloadLogs());
+
+// 重置：清 prompt 缓存 + 清 last_session（标题/正文/取向/必保留/勾选）+ 刷新页面。
+// 保留 settings（API key 等）和 logs。
+btnReset.addEventListener("click", () => {
+  if (!confirm("确认重置？将清空输入框、平台勾选和 prompt 缓存。\n设置和日志会保留。")) return;
+  prompts.clearCache();
+  storage.remove("last_session");
+  window.location.reload();
+});
 
 // 移除了「点遮罩关设置」监听 —— 误触频繁，用户在输入 API key/URL 时
 // 一旦点到遮罩就关掉，输入丢失。改为只有「保存」「取消」两个按钮可关闭。
