@@ -188,7 +188,7 @@ async function renderMain() {
           <select id="input-tone">${toneOptions}</select>
         </label>
         <label class="grow">
-          必须原样保留（用 / 或换行分隔）
+          必须原样保留（用空格、/或换行、顿号分隔均可）
           <input id="input-must-preserve" type="text" value="${escapeHtml(last.must_preserve)}" placeholder="如：张三、12.3%、《XX 通知》" />
         </label>
       </div>
