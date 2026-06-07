@@ -224,6 +224,7 @@ async function renderMain() {
 
       <div class="action-bar">
         <div class="platforms">${platformCheckboxes}</div>
+        <button id="btn-polish-only" type="button">📄 仅润色</button>
         <button id="btn-adapt" type="button" class="primary">✨ 一键改写</button>
       </div>
     </section>
@@ -250,6 +251,7 @@ function bindEditorEvents() {
 
   const btn = document.getElementById("btn-adapt");
   btn.addEventListener("click", onAdaptClick);
+  document.getElementById("btn-polish-only").addEventListener("click", onPolishOnlyClick);
 }
 
 function debounce(fn, ms) {
@@ -346,6 +348,47 @@ async function onAdaptClick() {
   } finally {
     btn.disabled = false;
     btn.textContent = "✨ 一键改写";
+  }
+}
+
+// 仅润色：调 polish.txt 1 次，渲染 1 张 baseline 卡。不走 5 个平台。
+async function onPolishOnlyClick() {
+  const session = collectSession();
+  if (!session.body.trim()) {
+    alert("请填入正文 / 素材内容");
+    return;
+  }
+
+  const config = await prompts.loadConfig();
+  renderResultsSkeleton([], true);
+
+  const btnAdapt = document.getElementById("btn-adapt");
+  const btnPolish = document.getElementById("btn-polish-only");
+  btnAdapt.disabled = true;
+  btnPolish.disabled = true;
+  btnPolish.textContent = "⏳ 润色中……";
+
+  try {
+    setResultState("baseline", "loading");
+    try {
+      const baseline = await adaptOne({
+        platformKey: "baseline",
+        promptFile: config.polish.prompt,
+        vars: {
+          INPUT: session.body,
+          TITLE: session.title,
+          TONE: session.tone,
+          MUST_PRESERVE: session.must_preserve,
+        },
+      });
+      setResultState("baseline", "success", baseline);
+    } catch (e) {
+      setResultState("baseline", "error", e.message);
+    }
+  } finally {
+    btnAdapt.disabled = false;
+    btnPolish.disabled = false;
+    btnPolish.textContent = "📄 仅润色";
   }
 }
 
