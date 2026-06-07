@@ -4,6 +4,16 @@ import * as storage from "./lib/storage.js";
 import * as logger from "./lib/logger.js";
 import * as llm from "./lib/llm.js";
 
+// 国内常见厂商预设（OpenAI 兼容 chat completions）。base_url 为空表示「自定义」。
+const PROVIDERS = [
+  { id: "custom",  name: "自定义",         base_url: "",                          model: "" },
+  { id: "deepseek", name: "DeepSeek",      base_url: "https://api.deepseek.com/v1", model: "deepseek-chat" },
+  { id: "MiniMax", name: "MiniMax",        base_url: "https://api.MiniMax.chat/v1", model: "MiniMax-M3" },
+  { id: "qwen",   name: "通义千问 (Qwen)", base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" },
+  { id: "glm",    name: "智谱 GLM",        base_url: "https://open.bigmodel.cn/api/paas/v4/", model: "glm-4-plus" },
+  { id: "doubao", name: "豆包 (Doubao)",   base_url: "https://ark.cn-beijing.volces.com/api/v3", model: "doubao-pro-32k" },
+];
+
 // ─── 浏览器能力检测 ────────────────────────
 (function checkBrowserSupport() {
   const missing = [];
@@ -35,6 +45,7 @@ const inputApiKey = document.getElementById("setting-api-key");
 const inputBaseUrl = document.getElementById("setting-base-url");
 const inputModel = document.getElementById("setting-model");
 const inputTimeout = document.getElementById("setting-timeout");
+const selectProvider = document.getElementById("setting-provider");
 
 function loadSettingsToForm() {
   const s = storage.get("settings", storage.DEFAULT_SETTINGS);
@@ -42,7 +53,18 @@ function loadSettingsToForm() {
   inputBaseUrl.value = s.base_url || storage.DEFAULT_SETTINGS.base_url;
   inputModel.value = s.model || storage.DEFAULT_SETTINGS.model;
   inputTimeout.value = s.timeout_seconds || storage.DEFAULT_SETTINGS.timeout_seconds;
+  // 按当前 base_url 反匹配预选厂商；匹配不上回退到「自定义」
+  const matched = PROVIDERS.find((p) => p.base_url && p.base_url === inputBaseUrl.value);
+  selectProvider.value = matched ? matched.id : "custom";
 }
+
+selectProvider.addEventListener("change", () => {
+  const p = PROVIDERS.find((x) => x.id === selectProvider.value);
+  if (p && p.base_url) {
+    inputBaseUrl.value = p.base_url;
+    inputModel.value = p.model;
+  }
+});
 
 function openSettings() {
   loadSettingsToForm();

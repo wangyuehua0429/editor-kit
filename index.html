@@ -27,6 +27,17 @@
     <div class="settings-panel">
       <h2>设置</h2>
       <label>
+        模型厂商
+        <select id="setting-provider">
+          <option value="custom">自定义</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="MiniMax">MiniMax</option>
+          <option value="qwen">通义千问 (Qwen)</option>
+          <option value="glm">智谱 GLM</option>
+          <option value="doubao">豆包 (Doubao)</option>
+        </select>
+      </label>
+      <label>
         API key
         <input id="setting-api-key" type="password" placeholder="sk-..." autocomplete="off" />
       </label>
