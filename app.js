@@ -29,6 +29,7 @@ const btnSave = document.getElementById("btn-settings-save");
 const btnCancel = document.getElementById("btn-settings-cancel");
 const btnExportLogs = document.getElementById("btn-export-logs");
 const btnReset = document.getElementById("btn-reset");
+const btnForgetKey = document.getElementById("btn-forget-key");
 
 const inputApiKey = document.getElementById("setting-api-key");
 const inputBaseUrl = document.getElementById("setting-base-url");
@@ -59,6 +60,9 @@ function saveSettings() {
     model: inputModel.value.trim() || storage.DEFAULT_SETTINGS.model,
     timeout_seconds: parseInt(inputTimeout.value, 10) || storage.DEFAULT_SETTINGS.timeout_seconds,
   };
+  if (s.api_key && s.base_url.startsWith("http://")) {
+    if (!confirm("base_url 是 http://，API key 会明文外传。仍要保存吗？")) return;
+  }
   storage.set("settings", s);
   closeSettings();
   renderMain();
@@ -68,6 +72,12 @@ btnSettings.addEventListener("click", openSettings);
 btnSave.addEventListener("click", saveSettings);
 btnCancel.addEventListener("click", closeSettings);
 btnExportLogs.addEventListener("click", () => logger.downloadLogs());
+btnForgetKey.addEventListener("click", () => {
+  if (!confirm("确认清除本地保存的 API key？\n清除后需要重新设置才能使用。")) return;
+  storage.remove("settings");
+  closeSettings();
+  renderMain();
+});
 
 // 重置：清 prompt 缓存 + 清 last_session（标题/正文/取向/必保留/勾选）+ 刷新页面。
 // 保留 settings（API key 等）和 logs。
