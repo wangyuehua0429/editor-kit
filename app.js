@@ -304,6 +304,44 @@ function setResultState(platformKey, state, content = "") {
   }
 }
 
+// ─── 适配核心 ────────────────────────────────
+// 调单个 prompt，返回 LLM 输出。负责日志记录。
+async function adaptOne({ platformKey, promptFile, vars }) {
+  const settings = storage.get("settings", storage.DEFAULT_SETTINGS);
+  const promptTemplate = await prompts.loadPrompt(promptFile);
+  const filled = prompts.fillPlaceholders(promptTemplate, vars);
+
+  const t0 = Date.now();
+  let output = "";
+  let status = "ok";
+  let errorMsg = null;
+  try {
+    output = await llm.complete({
+      baseUrl: settings.base_url,
+      apiKey: settings.api_key,
+      model: settings.model,
+      messages: [{ role: "user", content: filled }],
+      timeoutSeconds: settings.timeout_seconds,
+    });
+  } catch (e) {
+    status = e.code || "error";
+    errorMsg = e.message;
+  } finally {
+    await logger.logCall({
+      platform: platformKey,
+      prompt_file: promptFile,
+      prompt_text: filled,
+      input_text: vars.INPUT || "",
+      output_text: output,
+      duration_ms: Date.now() - t0,
+      status,
+    });
+  }
+
+  if (errorMsg) throw new llm.LLMError(errorMsg, status);
+  return output;
+}
+
 // 启动
 renderMain();
 console.log("editor-kit ready");
