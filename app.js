@@ -337,10 +337,14 @@ function renderResultsSkeleton(platforms, showBaseline) {
   const container = document.getElementById("results");
   const baselineHtml = showBaseline
     ? `
-    <div id="baseline" class="result-card baseline">
+    <div id="baseline" class="result-card baseline" data-platform="baseline">
       <div class="result-head">
         <h3>📄 专业润色稿</h3>
-        <button class="btn-copy" data-target="baseline-body" disabled>复制全文</button>
+        <div class="result-actions">
+          <button class="btn-regen" data-platform="baseline">换一版</button>
+          <button class="btn-clear hidden" data-platform="baseline">清空</button>
+          <button class="btn-copy" data-target="baseline-body" disabled>复制</button>
+        </div>
       </div>
       <div class="warning">⚠ 请人工核对人名、职务、时间、数字、引语</div>
       <div id="baseline-body" class="result-body">等待润色……</div>
@@ -354,7 +358,8 @@ function renderResultsSkeleton(platforms, showBaseline) {
       <div class="result-head">
         <h3>${p.name}</h3>
         <div class="result-actions">
-          <button class="btn-retry hidden" data-platform="${p.key}">重试</button>
+          <button class="btn-regen" data-platform="${p.key}">换一版</button>
+          <button class="btn-clear hidden" data-platform="${p.key}">清空</button>
           <button class="btn-copy" data-target="body-${p.key}" disabled>复制</button>
         </div>
       </div>
@@ -382,10 +387,17 @@ function renderResultsSkeleton(platforms, showBaseline) {
     });
   });
 
-  // 绑定重试按钮
-  container.querySelectorAll(".btn-retry").forEach((btn) => {
+  // 绑定「换一版」按钮
+  container.querySelectorAll(".btn-regen").forEach((btn) => {
     btn.addEventListener("click", () => {
-      retryOnePlatform(btn.dataset.platform);
+      regenerateOnePlatform(btn.dataset.platform);
+    });
+  });
+
+  // 绑定「清空」按钮
+  container.querySelectorAll(".btn-clear").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      clearOnePlatform(btn.dataset.platform);
     });
   });
 }
@@ -400,7 +412,8 @@ function setResultState(platformKey, state, content = "") {
 
   const body = document.getElementById(bodyId);
   const copyBtn = card.querySelector(".btn-copy");
-  const retryBtn = card.querySelector(".btn-retry");
+  const regenBtn = card.querySelector(".btn-regen");
+  const clearBtn = card.querySelector(".btn-clear");
 
   card.classList.remove("loading", "success", "error");
   card.classList.add(state);
@@ -408,15 +421,18 @@ function setResultState(platformKey, state, content = "") {
   if (state === "loading") {
     body.textContent = "⏳ 正在生成……";
     if (copyBtn) copyBtn.disabled = true;
-    if (retryBtn) retryBtn.classList.add("hidden");
+    if (regenBtn) regenBtn.disabled = true;
+    if (clearBtn) clearBtn.classList.add("hidden");
   } else if (state === "success") {
     body.textContent = content;
     if (copyBtn) copyBtn.disabled = false;
-    if (retryBtn) retryBtn.classList.add("hidden");
+    if (regenBtn) regenBtn.disabled = false;
+    if (clearBtn) clearBtn.classList.remove("hidden");
   } else if (state === "error") {
     body.textContent = `❌ ${content}`;
     if (copyBtn) copyBtn.disabled = true;
-    if (retryBtn) retryBtn.classList.remove("hidden");
+    if (regenBtn) regenBtn.disabled = false;
+    if (clearBtn) clearBtn.classList.remove("hidden");
   }
 }
 
@@ -458,13 +474,36 @@ async function adaptOne({ platformKey, promptFile, vars }) {
   return output;
 }
 
-async function retryOnePlatform(platformKey) {
+async function regenerateOnePlatform(platformKey) {
+  const session = collectSession();
+
+  // 基准稿：直接用原稿 + 润色取向 + 必保留
+  if (platformKey === "baseline") {
+    setResultState("baseline", "loading");
+    try {
+      const config = await prompts.loadConfig();
+      const out = await adaptOne({
+        platformKey: "baseline",
+        promptFile: config.polish.prompt,
+        vars: {
+          INPUT: session.body,
+          TITLE: session.title,
+          TONE: session.tone,
+          MUST_PRESERVE: session.must_preserve,
+        },
+      });
+      setResultState("baseline", "success", out);
+    } catch (e) {
+      setResultState("baseline", "error", e.message);
+    }
+    return;
+  }
+
+  // 平台：润色模式用基准稿,直接模式用原稿
   const config = await prompts.loadConfig();
   const p = config.platforms.find((x) => x.key === platformKey);
   if (!p) return;
 
-  // 决定输入：润色模式用基准稿,直接模式用原稿
-  const session = collectSession();
   let input = session.body;
   if (session.mode === "polish") {
     const baseline = document.getElementById("baseline-body")?.innerText || "";
@@ -487,6 +526,26 @@ async function retryOnePlatform(platformKey) {
   } catch (e) {
     setResultState(platformKey, "error", e.message);
   }
+}
+
+function clearOnePlatform(platformKey) {
+  const bodyId = platformKey === "baseline" ? "baseline-body" : `body-${platformKey}`;
+  const card =
+    platformKey === "baseline"
+      ? document.getElementById("baseline")
+      : document.querySelector(`.result-card[data-platform="${platformKey}"]`);
+  if (!card) return;
+
+  const body = document.getElementById(bodyId);
+  const copyBtn = card.querySelector(".btn-copy");
+  const regenBtn = card.querySelector(".btn-regen");
+  const clearBtn = card.querySelector(".btn-clear");
+
+  body.textContent = platformKey === "baseline" ? "等待润色……" : "等待开始……";
+  card.classList.remove("loading", "success", "error");
+  if (copyBtn) copyBtn.disabled = true;
+  if (regenBtn) regenBtn.disabled = false;
+  if (clearBtn) clearBtn.classList.add("hidden");
 }
 
 // 启动
