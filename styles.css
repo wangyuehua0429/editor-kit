@@ -130,3 +130,53 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .primary:disabled { background: #aaa; border-color: #aaa; }
 
 .results { margin-top: 1.5rem; }
+
+/* 结果卡片 */
+.result-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  padding: 1rem 1.2rem;
+}
+.result-card.loading { border-color: #fbbf24; }
+.result-card.success { border-color: #10b981; }
+.result-card.error { border-color: #ef4444; background: #fef2f2; }
+.result-card.baseline { border-color: #3b82f6; }
+
+.result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+.result-head h3 { margin: 0; font-size: 1.05rem; }
+.result-actions { display: flex; gap: 0.4rem; }
+
+.warning {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 0.3rem 0.6rem;
+  border-radius: 3px;
+  font-size: 0.82rem;
+  margin-bottom: 0.6rem;
+}
+
+.result-body {
+  white-space: pre-wrap;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", monospace;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  background: #fafafa;
+  padding: 0.8rem;
+  border-radius: 4px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}

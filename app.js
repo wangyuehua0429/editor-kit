@@ -221,6 +221,89 @@ function onAdaptClick() {
   alert(`即将适配 ${session.selected_platforms.length} 个平台（Phase 6 实现）`);
 }
 
+// ─── 结果区 ──────────────────────────────────
+// 每平台状态：'pending' | 'loading' | 'success' | 'error'
+
+function renderResultsSkeleton(platforms, showBaseline) {
+  const container = document.getElementById("results");
+  const baselineHtml = showBaseline
+    ? `
+    <div id="baseline" class="result-card baseline">
+      <div class="result-head">
+        <h3>📄 专业润色稿</h3>
+        <button class="btn-copy" data-target="baseline-body" disabled>复制全文</button>
+      </div>
+      <div class="warning">⚠ 请人工核对人名、职务、时间、数字、引语</div>
+      <div id="baseline-body" class="result-body">等待润色……</div>
+    </div>`
+    : "";
+
+  const cardsHtml = platforms
+    .map(
+      (p) => `
+    <div class="result-card" data-platform="${p.key}">
+      <div class="result-head">
+        <h3>${p.name}</h3>
+        <div class="result-actions">
+          <button class="btn-retry hidden" data-platform="${p.key}">重试</button>
+          <button class="btn-copy" data-target="body-${p.key}" disabled>复制</button>
+        </div>
+      </div>
+      <div class="warning">⚠ 请人工核对人名、职务、时间、数字、引语</div>
+      <div id="body-${p.key}" class="result-body">等待开始……</div>
+    </div>`
+    )
+    .join("");
+
+  container.innerHTML = baselineHtml + `<div class="cards">${cardsHtml}</div>`;
+
+  // 绑定复制按钮（每次重渲染都要重绑）
+  container.querySelectorAll(".btn-copy").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.target;
+      const text = document.getElementById(id)?.innerText || "";
+      navigator.clipboard.writeText(text).then(
+        () => {
+          const orig = btn.textContent;
+          btn.textContent = "✓ 已复制";
+          setTimeout(() => (btn.textContent = orig), 1500);
+        },
+        () => alert("复制失败，请手动选择文本")
+      );
+    });
+  });
+}
+
+function setResultState(platformKey, state, content = "") {
+  const bodyId = platformKey === "baseline" ? "baseline-body" : `body-${platformKey}`;
+  const card =
+    platformKey === "baseline"
+      ? document.getElementById("baseline")
+      : document.querySelector(`.result-card[data-platform="${platformKey}"]`);
+  if (!card) return;
+
+  const body = document.getElementById(bodyId);
+  const copyBtn = card.querySelector(".btn-copy");
+  const retryBtn = card.querySelector(".btn-retry");
+
+  card.classList.remove("loading", "success", "error");
+  card.classList.add(state);
+
+  if (state === "loading") {
+    body.textContent = "⏳ 正在生成……";
+    if (copyBtn) copyBtn.disabled = true;
+    if (retryBtn) retryBtn.classList.add("hidden");
+  } else if (state === "success") {
+    body.textContent = content;
+    if (copyBtn) copyBtn.disabled = false;
+    if (retryBtn) retryBtn.classList.add("hidden");
+  } else if (state === "error") {
+    body.textContent = `❌ ${content}`;
+    if (copyBtn) copyBtn.disabled = true;
+    if (retryBtn) retryBtn.classList.remove("hidden");
+  }
+}
+
 // 启动
 renderMain();
 console.log("editor-kit ready");
