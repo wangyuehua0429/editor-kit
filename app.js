@@ -100,6 +100,24 @@ async function renderMain() {
     return;
   }
 
+  // 预检所有 prompt 文件可加载
+  const allFiles = [
+    config.polish.prompt,
+    ...config.platforms.filter((p) => p.enabled).map((p) => p.prompt),
+  ];
+  const missing = [];
+  for (const f of allFiles) {
+    try {
+      await prompts.loadPrompt(f);
+    } catch (e) {
+      missing.push(f);
+    }
+  }
+  if (missing.length > 0) {
+    main.innerHTML = `<p style="color:red">prompt 文件缺失：${missing.join(", ")}<br>请检查 prompts/ 目录。</p>`;
+    return;
+  }
+
   const last = storage.get("last_session", {
     mode: "polish",
     title: "",
