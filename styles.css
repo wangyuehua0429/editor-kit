@@ -140,14 +140,35 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ─── 编辑器主区 ─── */
 .editor { max-width: 900px; }
-.mode-bar { margin-bottom: 16px; }
-.mode-bar label { margin-right: 24px; }
+.mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.mode-bar label { margin-right: 0; }
+.variant-selector label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #6B7280;
+}
+.variant-selector select {
+  padding: 4px 8px;
+  border: 1px solid #D1D5DB;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
 
 .input-block { display: block; margin: 12px 0; }
 .input-block input,
 .input-block textarea {
   display: block;
   width: 100%;
+  box-sizing: border-box;
   padding: 10px 12px;
   border: 1px solid #D1D5DB;
   border-radius: 6px;
@@ -172,37 +193,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   line-height: 1.6;
 }
 
-.polish-controls {
-  display: flex;
-  gap: 16px;
-  margin: 12px 0;
-}
-.polish-controls label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.85rem;
-  color: #6B7280;
-}
-.polish-controls .grow { flex: 1; }
-.polish-controls select,
-.polish-controls input {
-  padding: 8px 10px;
-  border: 1px solid #D1D5DB;
-  border-radius: 6px;
-  margin-top: 4px;
-  font-family: inherit;
-  font-size: 0.95rem;
-  color: #1F2937;
-  background: #fff;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-}
-.polish-controls select:focus,
-.polish-controls input:focus {
-  outline: none;
-  border-color: #4F46E5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
-}
-
 .action-bar {
   display: flex;
   align-items: center;
@@ -222,7 +212,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   gap: 4px;
 }
 
-.results { margin-top: 24px; }
+.results { margin-top: 24px; max-width: 900px; }
 
 /* ─── 结果卡 ─── */
 .result-card {
@@ -274,6 +264,134 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #1F2937;
   max-height: 500px;
   overflow-y: auto;
+}
+
+/* ─── 调试面板 ─── */
+.debug-panel {
+  margin: 16px 0;
+  border: 1px solid #4F46E5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.debug-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #EEF2FF;
+  border-bottom: 1px solid #C7D2FE;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #3730A3;
+}
+.debug-head select {
+  padding: 4px 8px;
+  border: 1px solid #C7D2FE;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.debug-tone-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: #3730A3;
+}
+.debug-tone-label select {
+  padding: 4px 8px;
+  border: 1px solid #C7D2FE;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+#btn-debug-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #6B7280;
+  padding: 2px 6px;
+}
+.debug-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px 16px;
+  align-items: stretch;
+}
+.debug-col {
+  display: flex;
+  flex-direction: column;
+}
+.debug-col h4 {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: #6B7280;
+  flex-shrink: 0;
+}
+.debug-col pre,
+.debug-col textarea {
+  margin: 0;
+  padding: 10px 12px;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 360px;
+  overflow-y: auto;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", monospace;
+  color: #1F2937;
+  resize: none;
+  flex: 1;
+  min-height: 200px;
+}
+.debug-col textarea:focus {
+  outline: none;
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+/* ─── 变动对比（妥协清单） ─── */
+.diff-view {
+  margin-top: 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.diff-head {
+  padding: 8px 12px;
+  background: #F3F4F6;
+  font-size: 0.85rem;
+  color: #6B7280;
+  border-bottom: 1px solid #E5E7EB;
+}
+.diff-inline {
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  line-height: 1.8;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.diff-add {
+  background: #D1FAE5;
+  color: #065F46;
+}
+.diff-remove {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+.diff-same {
+  color: #6B7280;
 }
 
 .cards {

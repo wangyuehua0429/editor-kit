@@ -58,11 +58,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 引号用弯引号 `""''`，禁止英文直引号
 - 占位符：`{INPUT}` / `{TITLE}` / `{TONE}`（仅 `polish.txt` 用）/ `{MUST_PRESERVE}`（仅 `polish.txt` 用）
 
+## v0.2 新增功能
+
+### Prompt 调试面板
+
+点「🔍 调试」按钮，在编辑器下方展开面板。左侧显示原始 prompt 模板，右侧显示占位符填充后的完整内容（即实际发送给 LLM 的文本）。可切换查看各平台和润色 prompt。表单内容变化时实时刷新。
+
+### 多版 prompt 切换
+
+`prompts.config.json` 新增可选的 `variants` 数组，定义多套 prompt 版本。平台和 polish 可通过 `alt_prompts` 字段指定某 variant 对应的 prompt 文件，未指定则回退到默认 `prompt`。仅当 variants 数量 > 1 时，编辑器顶部才显示「Prompt 版本」下拉框。
+
+示例配置：
+```json
+{
+  "variants": [{"key": "standard", "name": "标准版"}, {"key": "casual", "name": "轻松版"}],
+  "platforms": [
+    {"key": "wechat", "prompt": "wechat.txt", "alt_prompts": {"casual": "wechat-casual.txt"}, ...}
+  ],
+  "polish": {
+    "prompt": "polish.txt",
+    "alt_prompts": {"casual": "polish-casual.txt"},
+    ...
+  }
+}
+```
+
+### 妥协清单（变动对比）
+
+每张结果卡新增「查看变动」按钮。点开后用行级 LCS diff 对比原文和 AI 输出：红色 − 删除行、绿色 + 新增行、灰色 不变行。再次点击收起。不额外调用 LLM。
+
 ## 版本
 
 git tag 落地：
 
 - `v0.1` —— 7 个验收场景 + 导出日志附加项全通过
 - `v0.1.1` —— 重置按钮 + 单卡片换一版/清空 + 复制 MD/TXT 双格式 + 标点规范强化
-
-v0.2 候选功能（未做）：prompt 调试面板、多版 prompt 切换、妥协清单。
+- `v0.2` —— prompt 调试面板 + 多版 prompt 切换 + 妥协清单（变动对比）

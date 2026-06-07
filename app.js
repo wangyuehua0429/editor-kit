@@ -201,13 +201,21 @@ async function renderMain() {
   }
 
   const last = storage.get("last_session", {
-    mode: "polish",
+    mode: "direct",
     title: "",
     body: "",
     tone: config.polish.default_tone,
     must_preserve: "",
     selected_platforms: config.platforms.map((p) => p.key),
+    variant: config.variants?.[0]?.key || "",
   });
+
+  const variantOptions = (config.variants || []).length > 1
+    ? config.variants.map(
+        (v) =>
+          `<option value="${escapeHtml(v.key)}" ${v.key === last.variant ? "selected" : ""}>${escapeHtml(v.name)}</option>`
+      ).join("")
+    : "";
 
   const platformCheckboxes = config.platforms
     .filter((p) => p.enabled)
@@ -235,6 +243,7 @@ async function renderMain() {
       <div class="mode-bar">
         <label><input type="radio" name="mode" value="direct" ${last.mode === "direct" ? "checked" : ""}> 直接适配</label>
         <label><input type="radio" name="mode" value="polish" ${last.mode === "polish" ? "checked" : ""}> 先润色再适配</label>
+        ${variantOptions ? `<div class="variant-selector"><label>风格取向 <select id="input-variant">${variantOptions}</select></label></div>` : ""}
       </div>
 
       <label class="input-block">
@@ -247,21 +256,37 @@ async function renderMain() {
         <textarea id="input-body" rows="12">${escapeHtml(last.body)}</textarea>
       </label>
 
-      <div class="polish-controls">
-        <label>
-          润色取向
-          <select id="input-tone">${toneOptions}</select>
-        </label>
-        <label class="grow">
-          必须原样保留（用空格、/或换行、顿号分隔均可）
-          <input id="input-must-preserve" type="text" value="${escapeHtml(last.must_preserve)}" placeholder="如：张三、12.3%、《XX 通知》" />
-        </label>
-      </div>
+      <input id="input-tone" type="hidden" value="${escapeHtml(last.tone)}" />
+      <input id="input-must-preserve" type="hidden" value="${escapeHtml(last.must_preserve)}" />
 
       <div class="action-bar">
         <div class="platforms">${platformCheckboxes}</div>
+        <button id="btn-debug-toggle" type="button">🔍 调试</button>
         <button id="btn-polish-only" type="button">📄 仅润色</button>
         <button id="btn-adapt" type="button" class="primary">✨ 一键改写</button>
+      </div>
+
+      <div id="debug-panel" class="debug-panel hidden">
+        <div class="debug-head">
+          <span>Prompt 调试</span>
+          <select id="debug-prompt-select"></select>
+          <label class="debug-tone-label">取向 <select id="debug-tone-select">${toneOptions}</select></label>
+          <button id="btn-debug-edit" type="button">✏️ 编辑</button>
+          <button id="btn-debug-save" type="button" class="hidden">💾 保存</button>
+          <button id="btn-debug-reset" type="button">↩ 恢复默认</button>
+          <button id="btn-debug-close" type="button">✕</button>
+        </div>
+        <div class="debug-body">
+          <div class="debug-col">
+            <h4>原始模板</h4>
+            <pre id="debug-raw-view"></pre>
+            <textarea id="debug-raw" class="hidden" spellcheck="false"></textarea>
+          </div>
+          <div class="debug-col">
+            <h4>填充后（将发送给 LLM）</h4>
+            <pre id="debug-filled"></pre>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -288,6 +313,173 @@ function bindEditorEvents() {
   const btn = document.getElementById("btn-adapt");
   btn.addEventListener("click", onAdaptClick);
   document.getElementById("btn-polish-only").addEventListener("click", onPolishOnlyClick);
+
+  // ─── 调试面板 ───
+  const debugPanel = document.getElementById("debug-panel");
+  const debugSelect = document.getElementById("debug-prompt-select");
+  const debugTone = document.getElementById("debug-tone-select");
+  const debugRawView = document.getElementById("debug-raw-view");
+  const debugRaw = document.getElementById("debug-raw");
+  const debugFilled = document.getElementById("debug-filled");
+  const btnDebugEdit = document.getElementById("btn-debug-edit");
+  const btnDebugSave = document.getElementById("btn-debug-save");
+  const btnDebugReset = document.getElementById("btn-debug-reset");
+
+  // 同步调试面板的取向与表单的取向 + variant（双向）
+  // tone ↔ variant 映射：平实→pingshi, 中性→zhongxing, 严肃→yansu, 活泼→huopo
+  const toneVariantMap = { "平实": "pingshi", "中性": "zhongxing", "严肃": "yansu", "活泼": "huopo" };
+  const variantToneMap = { "pingshi": "平实", "zhongxing": "中性", "yansu": "严肃", "huopo": "活泼" };
+
+  const inputTone = document.getElementById("input-tone");
+  const inputVariant = document.getElementById("input-variant");
+
+  debugTone?.addEventListener("change", () => {
+    inputTone.value = debugTone.value;
+    inputTone.dispatchEvent(new Event("change"));
+    // 同步 variant，触发切换 prompt 文件
+    const vKey = toneVariantMap[debugTone.value];
+    if (vKey && inputVariant) {
+      inputVariant.value = vKey;
+      inputVariant.dispatchEvent(new Event("change"));
+    }
+    refreshFilledPreview();
+  });
+  inputTone?.addEventListener("change", () => {
+    if (debugTone) debugTone.value = inputTone.value;
+  });
+  // variant 变化时同步回 debug tone
+  inputVariant?.addEventListener("change", () => {
+    const tVal = variantToneMap[inputVariant.value];
+    if (tVal) {
+      if (debugTone) debugTone.value = tVal;
+      inputTone.value = tVal;
+    }
+  });
+
+  document.getElementById("btn-debug-toggle").addEventListener("click", async () => {
+    debugPanel.classList.toggle("hidden");
+    if (!debugPanel.classList.contains("hidden")) {
+      await refreshDebugPanel();
+    }
+  });
+  document.getElementById("btn-debug-close").addEventListener("click", () => {
+    debugPanel.classList.add("hidden");
+  });
+
+  debugSelect.addEventListener("change", () => {
+    exitEditMode();
+    updateDebugContent();
+  });
+
+  // 编辑按钮：进入编辑模式
+  btnDebugEdit.addEventListener("click", () => {
+    debugRaw.value = debugRawView.textContent;
+    debugRawView.classList.add("hidden");
+    debugRaw.classList.remove("hidden");
+    btnDebugEdit.classList.add("hidden");
+    btnDebugSave.classList.remove("hidden");
+  });
+
+  // 保存按钮：自动更新版本头的日期，存 localStorage，退出编辑模式
+  btnDebugSave.addEventListener("click", () => {
+    const sel = debugSelect.selectedOptions[0];
+    if (!sel) return;
+    const file = sel.dataset.file;
+    // 自动更新第一行版本头的日期
+    const today = new Date().toISOString().slice(0, 10);
+    const lines = debugRaw.value.split("\n");
+    lines[0] = lines[0].replace(/\d{4}-\d{2}-\d{2}/, today);
+    debugRaw.value = lines.join("\n");
+
+    if (prompts.savePromptOverride(file, debugRaw.value)) {
+      debugRawView.textContent = debugRaw.value;
+      exitEditMode();
+      refreshFilledPreview();
+      btnDebugSave.textContent = "✓ 已保存";
+      setTimeout(() => (btnDebugSave.textContent = "💾 保存"), 1200);
+      document.getElementById("results").innerHTML = "";
+    } else {
+      alert("保存失败，请检查浏览器存储空间");
+    }
+  });
+
+  btnDebugReset.addEventListener("click", async () => {
+    const sel = debugSelect.selectedOptions[0];
+    if (!sel) return;
+    const file = sel.dataset.file;
+    if (!prompts.hasPromptOverride(file)) {
+      alert("该 prompt 没有本地修改，无需恢复");
+      return;
+    }
+    if (!confirm(`确认恢复 ${file} 为默认版本？本地修改将丢失。`)) return;
+    prompts.deletePromptOverride(file);
+    exitEditMode();
+    const raw = await prompts.loadPromptRaw(file);
+    debugRawView.textContent = raw;
+    debugRaw.value = raw;
+    refreshFilledPreview();
+    document.getElementById("results").innerHTML = "";
+  });
+
+  function exitEditMode() {
+    debugRawView.classList.remove("hidden");
+    debugRaw.classList.add("hidden");
+    btnDebugEdit.classList.remove("hidden");
+    btnDebugSave.classList.add("hidden");
+  }
+
+  // 表单变化时如果调试面板开着就实时刷新填充预览
+  document.querySelectorAll("#input-title, #input-body, #input-tone, #input-must-preserve, #input-variant").forEach((el) => {
+    el.addEventListener("input", () => {
+      if (!debugPanel.classList.contains("hidden")) refreshFilledPreview();
+    });
+    el.addEventListener("change", () => {
+      if (!debugPanel.classList.contains("hidden") && el.id === "input-variant") {
+        exitEditMode();
+        refreshDebugPanel();
+      } else if (!debugPanel.classList.contains("hidden")) {
+        refreshFilledPreview();
+      }
+    });
+  });
+
+  async function refreshDebugPanel() {
+    const config = await prompts.loadConfig();
+    const variant = document.getElementById("input-variant")?.value || "";
+    const polishFile = prompts.resolvePromptFile(
+      { prompt: config.polish.prompt, alt_prompts: config.polish.alt_prompts },
+      variant
+    );
+    const opts = [{ key: "polish", name: `润色 (${polishFile})`, file: polishFile }];
+    config.platforms.filter((p) => p.enabled).forEach((p) => {
+      const f = prompts.resolvePromptFile(p, variant);
+      opts.push({ key: p.key, name: p.name + " (" + f + ")", file: f });
+    });
+    debugSelect.innerHTML = opts.map((o) => `<option value="${o.key}" data-file="${o.file}">${o.name}</option>`).join("");
+    if (debugTone) debugTone.value = document.getElementById("input-tone").value;
+    updateDebugContent();
+  }
+
+  async function updateDebugContent() {
+    const sel = debugSelect.selectedOptions[0];
+    if (!sel) return;
+    const file = sel.dataset.file;
+    const raw = await prompts.loadPromptRaw(file);
+    debugRawView.textContent = raw;
+    debugRaw.value = raw;
+    refreshFilledPreview();
+  }
+
+  function refreshFilledPreview() {
+    const raw = debugRaw.classList.contains("hidden") ? debugRawView.textContent : debugRaw.value;
+    const vars = {
+      INPUT: document.getElementById("input-body").value || "（示例素材文本……）",
+      TITLE: document.getElementById("input-title").value || "（示例标题）",
+      TONE: document.getElementById("input-tone").value,
+      MUST_PRESERVE: document.getElementById("input-must-preserve").value || "（无）",
+    };
+    debugFilled.textContent = prompts.fillPlaceholders(raw, vars);
+  }
 }
 
 function debounce(fn, ms) {
@@ -300,7 +492,7 @@ function debounce(fn, ms) {
 
 function collectSession() {
   return {
-    mode: document.querySelector('input[name="mode"]:checked')?.value || "polish",
+    mode: document.querySelector('input[name="mode"]:checked')?.value || "direct",
     title: document.getElementById("input-title").value,
     body: document.getElementById("input-body").value,
     tone: document.getElementById("input-tone").value,
@@ -308,6 +500,7 @@ function collectSession() {
     selected_platforms: Array.from(
       document.querySelectorAll('input[name="platform"]:checked')
     ).map((el) => el.value),
+    variant: document.getElementById("input-variant")?.value || "",
   };
 }
 
@@ -341,13 +534,18 @@ async function onAdaptClick() {
   try {
     let inputForPlatforms = session.body;
 
+    const polishPromptFile = prompts.resolvePromptFile(
+      { prompt: config.polish.prompt, alt_prompts: config.polish.alt_prompts },
+      session.variant
+    );
+
     if (session.mode === "polish") {
       // Step 1: 润色
       setResultState("baseline", "loading");
       try {
         const baseline = await adaptOne({
           platformKey: "baseline",
-          promptFile: config.polish.prompt,
+          promptFile: polishPromptFile,
           vars: {
             INPUT: session.body,
             TITLE: session.title,
@@ -372,8 +570,12 @@ async function onAdaptClick() {
         try {
           const out = await adaptOne({
             platformKey: p.key,
-            promptFile: p.prompt,
-            vars: { INPUT: inputForPlatforms, TITLE: session.title },
+            promptFile: prompts.resolvePromptFile(p, session.variant),
+            vars: {
+              INPUT: inputForPlatforms,
+              TITLE: session.title,
+              MUST_PRESERVE: session.must_preserve,
+            },
           });
           setResultState(p.key, "success", out);
         } catch (e) {
@@ -398,6 +600,11 @@ async function onPolishOnlyClick() {
   const config = await prompts.loadConfig();
   renderResultsSkeleton([], true);
 
+  const polishPromptFile = prompts.resolvePromptFile(
+    { prompt: config.polish.prompt, alt_prompts: config.polish.alt_prompts },
+    session.variant
+  );
+
   const btnAdapt = document.getElementById("btn-adapt");
   const btnPolish = document.getElementById("btn-polish-only");
   btnAdapt.disabled = true;
@@ -409,7 +616,7 @@ async function onPolishOnlyClick() {
     try {
       const baseline = await adaptOne({
         platformKey: "baseline",
-        promptFile: config.polish.prompt,
+        promptFile: polishPromptFile,
         vars: {
           INPUT: session.body,
           TITLE: session.title,
@@ -439,6 +646,7 @@ function renderResultsSkeleton(platforms, showBaseline) {
       <div class="result-head">
         <h3>📄 专业润色稿</h3>
         <div class="result-actions">
+          <button class="btn-diff" data-platform="baseline" disabled>查看变动</button>
           <button class="btn-regen" data-platform="baseline">换一版</button>
           <button class="btn-clear hidden" data-platform="baseline">清空</button>
           <button class="btn-copy-md" data-target="baseline-body" disabled>复制 MD</button>
@@ -457,6 +665,7 @@ function renderResultsSkeleton(platforms, showBaseline) {
       <div class="result-head">
         <h3>${p.name}</h3>
         <div class="result-actions">
+          <button class="btn-diff" data-platform="${p.key}" disabled>查看变动</button>
           <button class="btn-regen" data-platform="${p.key}">换一版</button>
           <button class="btn-clear hidden" data-platform="${p.key}">清空</button>
           <button class="btn-copy-md" data-target="body-${p.key}" disabled>复制 MD</button>
@@ -505,6 +714,13 @@ function renderResultsSkeleton(platforms, showBaseline) {
       clearOnePlatform(btn.dataset.platform);
     });
   });
+
+  // 绑定「查看变动」按钮
+  container.querySelectorAll(".btn-diff").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      toggleDiff(btn.dataset.platform);
+    });
+  });
 }
 
 function setResultState(platformKey, state, content = "") {
@@ -517,8 +733,13 @@ function setResultState(platformKey, state, content = "") {
 
   const body = document.getElementById(bodyId);
   const copyBtns = card.querySelectorAll(".btn-copy-md, .btn-copy-txt");
+  const diffBtn = card.querySelector(".btn-diff");
   const regenBtn = card.querySelector(".btn-regen");
   const clearBtn = card.querySelector(".btn-clear");
+
+  // 移除旧 diff 视图
+  const oldDiff = card.querySelector(".diff-view");
+  if (oldDiff) oldDiff.remove();
 
   card.classList.remove("loading", "success", "error");
   card.classList.add(state);
@@ -526,16 +747,19 @@ function setResultState(platformKey, state, content = "") {
   if (state === "loading") {
     body.textContent = "⏳ 正在生成……";
     copyBtns.forEach((b) => (b.disabled = true));
+    if (diffBtn) diffBtn.disabled = true;
     if (regenBtn) regenBtn.disabled = true;
     if (clearBtn) clearBtn.classList.add("hidden");
   } else if (state === "success") {
     body.textContent = content;
     copyBtns.forEach((b) => (b.disabled = false));
+    if (diffBtn) diffBtn.disabled = false;
     if (regenBtn) regenBtn.disabled = false;
     if (clearBtn) clearBtn.classList.remove("hidden");
   } else if (state === "error") {
     body.textContent = `❌ ${content}`;
     copyBtns.forEach((b) => (b.disabled = true));
+    if (diffBtn) diffBtn.disabled = true;
     if (regenBtn) regenBtn.disabled = false;
     if (clearBtn) clearBtn.classList.remove("hidden");
   }
@@ -587,9 +811,13 @@ async function regenerateOnePlatform(platformKey) {
     setResultState("baseline", "loading");
     try {
       const config = await prompts.loadConfig();
+      const polishPromptFile = prompts.resolvePromptFile(
+        { prompt: config.polish.prompt, alt_prompts: config.polish.alt_prompts },
+        session.variant
+      );
       const out = await adaptOne({
         platformKey: "baseline",
-        promptFile: config.polish.prompt,
+        promptFile: polishPromptFile,
         vars: {
           INPUT: session.body,
           TITLE: session.title,
@@ -624,8 +852,12 @@ async function regenerateOnePlatform(platformKey) {
   try {
     const out = await adaptOne({
       platformKey: p.key,
-      promptFile: p.prompt,
-      vars: { INPUT: input, TITLE: session.title },
+      promptFile: prompts.resolvePromptFile(p, session.variant),
+      vars: {
+        INPUT: input,
+        TITLE: session.title,
+        MUST_PRESERVE: session.must_preserve,
+      },
     });
     setResultState(platformKey, "success", out);
   } catch (e) {
@@ -648,10 +880,110 @@ function clearOnePlatform(platformKey) {
 
   body.textContent = platformKey === "baseline" ? "等待润色……" : "等待开始……";
   card.classList.remove("loading", "success", "error");
+  card._inputText = null;
+  const diffView = card.querySelector(".diff-view");
+  if (diffView) diffView.remove();
+  const diffBtn = card.querySelector(".btn-diff");
+  if (diffBtn) diffBtn.disabled = true;
   copyBtns.forEach((b) => (b.disabled = true));
   if (regenBtn) regenBtn.disabled = false;
   if (clearBtn) clearBtn.classList.add("hidden");
 }
+
+// ─── 行级 diff（妥协清单） ──────────────────
+function lineDiff(oldText, newText) {
+  const oldLines = (oldText || "").split("\n");
+  const newLines = (newText || "").split("\n");
+
+  // LCS 表
+  const m = oldLines.length;
+  const n = newLines.length;
+  const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (oldLines[i - 1] === newLines[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  // 回溯
+  const result = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+      result.unshift({ type: "same", text: oldLines[i - 1] });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      result.unshift({ type: "add", text: newLines[j - 1] });
+      j--;
+    } else {
+      result.unshift({ type: "remove", text: oldLines[i - 1] });
+      i--;
+    }
+  }
+  return result;
+}
+
+function renderDiffInline(diffOps) {
+  if (diffOps.length === 0) return "<p>（无变动）</p>";
+  let html = '<div class="diff-inline">';
+  for (const op of diffOps) {
+    const cls = op.type === "add" ? "diff-add" : op.type === "remove" ? "diff-remove" : "diff-same";
+    html += `<span class="${cls}">${escapeHtml(op.text)}</span>\n`;
+  }
+  html += "</div>";
+  return html;
+}
+
+function toggleDiff(platformKey) {
+  const card = platformKey === "baseline"
+    ? document.getElementById("baseline")
+    : document.querySelector(`.result-card[data-platform="${platformKey}"]`);
+  if (!card) return;
+
+  let diffEl = card.querySelector(".diff-view");
+  if (diffEl) {
+    diffEl.remove();
+    return;
+  }
+
+  const bodyId = platformKey === "baseline" ? "baseline-body" : `body-${platformKey}`;
+  const outputText = document.getElementById(bodyId)?.innerText || "";
+  const inputText = card._inputText || "";
+
+  diffEl = document.createElement("div");
+  diffEl.className = "diff-view";
+  const ops = lineDiff(inputText, outputText);
+  diffEl.innerHTML = `
+    <div class="diff-head">变动对比（<span class="diff-remove">− 原文</span> <span class="diff-add">+ AI 输出</span>）</div>
+    ${renderDiffInline(ops)}
+  `;
+  card.appendChild(diffEl);
+}
+
+// 在 setResultState 成功后记录 input 原文
+const _origSetResultState = setResultState;
+setResultState = function (platformKey, state, content) {
+  if (state === "success") {
+    const card = platformKey === "baseline"
+      ? document.getElementById("baseline")
+      : document.querySelector(`.result-card[data-platform="${platformKey}"]`);
+    if (card && !card._inputText) {
+      const session = collectSession();
+      if (platformKey === "baseline") {
+        card._inputText = session.body;
+      } else if (session.mode === "polish") {
+        card._inputText = document.getElementById("baseline-body")?.innerText || session.body;
+      } else {
+        card._inputText = session.body;
+      }
+    }
+  }
+  return _origSetResultState(platformKey, state, content);
+};
 
 // 启动
 renderMain();

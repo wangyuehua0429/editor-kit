@@ -1,4 +1,10 @@
 {
+  "variants": [
+    {"key": "zhongxing", "name": "中性"},
+    {"key": "pingshi",   "name": "平实"},
+    {"key": "yansu",     "name": "严肃"},
+    {"key": "huopo",     "name": "活泼"}
+  ],
   "platforms": [
     {"key": "wechat",      "name": "微信公众号", "prompt": "wechat.txt",      "enabled": true, "order": 1},
     {"key": "weibo",       "name": "微博",       "prompt": "weibo.txt",       "enabled": true, "order": 2},
@@ -7,7 +13,13 @@
     {"key": "paper",       "name": "传统报纸",   "prompt": "paper.txt",       "enabled": true, "order": 5}
   ],
   "polish": {
-    "prompt": "polish.txt",
+    "prompt": "polish-zhongxing.txt",
+    "alt_prompts": {
+      "pingshi":   "polish-pingshi.txt",
+      "zhongxing": "polish-zhongxing.txt",
+      "yansu":     "polish-yansu.txt",
+      "huopo":     "polish-huopo.txt"
+    },
     "tones": ["平实", "中性", "严肃", "活泼"],
     "default_tone": "中性"
   }
