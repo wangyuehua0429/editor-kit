@@ -63,6 +63,10 @@ selectProvider.addEventListener("change", () => {
   if (p && p.base_url) {
     inputBaseUrl.value = p.base_url;
     inputModel.value = p.model;
+  } else {
+    // 自定义：清空字段，让用户从头填
+    inputBaseUrl.value = "";
+    inputModel.value = "";
   }
 });
 
