@@ -8,7 +8,7 @@ import * as llm from "./lib/llm.js";
 const PROVIDERS = [
   { id: "custom",  name: "自定义",         base_url: "",                          model: "" },
   { id: "deepseek", name: "DeepSeek",      base_url: "https://api.deepseek.com/v1", model: "deepseek-chat" },
-  { id: "MiniMax", name: "MiniMax",        base_url: "https://api.MiniMax.chat/v1", model: "MiniMax-M3" },
+  { id: "MiniMax", name: "MiniMax",        base_url: "https://api.minimaxi.com/v1", model: "MiniMax-M3" },
   { id: "qwen",   name: "通义千问 (Qwen)", base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" },
   { id: "glm",    name: "智谱 GLM",        base_url: "https://open.bigmodel.cn/api/paas/v4/", model: "glm-4-plus" },
   { id: "doubao", name: "豆包 (Doubao)",   base_url: "https://ark.cn-beijing.volces.com/api/v3", model: "doubao-pro-32k" },
