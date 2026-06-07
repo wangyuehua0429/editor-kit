@@ -206,7 +206,7 @@ function saveLastSession() {
   storage.set("last_session", collectSession());
 }
 
-function onAdaptClick() {
+async function onAdaptClick() {
   const session = collectSession();
   if (!session.body.trim()) {
     alert("请填入正文 / 素材内容");
@@ -216,9 +216,66 @@ function onAdaptClick() {
     alert("请至少勾选 1 个平台");
     return;
   }
-  // 实际适配在 Phase 6 实现
-  console.log("ready to adapt", session);
-  alert(`即将适配 ${session.selected_platforms.length} 个平台（Phase 6 实现）`);
+
+  const config = await prompts.loadConfig();
+  const selectedPlatforms = config.platforms.filter(
+    (p) => session.selected_platforms.includes(p.key) && p.enabled
+  );
+
+  const showBaseline = session.mode === "polish";
+  renderResultsSkeleton(selectedPlatforms, showBaseline);
+
+  const btn = document.getElementById("btn-adapt");
+  btn.disabled = true;
+  btn.textContent = "⏳ 适配中……";
+
+  try {
+    let inputForPlatforms = session.body;
+
+    if (session.mode === "polish") {
+      // Step 1: 润色
+      setResultState("baseline", "loading");
+      try {
+        const baseline = await adaptOne({
+          platformKey: "baseline",
+          promptFile: config.polish.prompt,
+          vars: {
+            INPUT: session.body,
+            TITLE: session.title,
+            TONE: session.tone,
+            MUST_PRESERVE: session.must_preserve,
+          },
+        });
+        setResultState("baseline", "success", baseline);
+        inputForPlatforms = baseline;
+      } catch (e) {
+        setResultState("baseline", "error", e.message);
+        // 基准稿失败,不进入第二步
+        return;
+      }
+    }
+
+    // Step 2: 并行适配各平台
+    selectedPlatforms.forEach((p) => setResultState(p.key, "loading"));
+
+    await Promise.all(
+      selectedPlatforms.map(async (p) => {
+        try {
+          const out = await adaptOne({
+            platformKey: p.key,
+            promptFile: p.prompt,
+            vars: { INPUT: inputForPlatforms, TITLE: session.title },
+          });
+          setResultState(p.key, "success", out);
+        } catch (e) {
+          setResultState(p.key, "error", e.message);
+        }
+      })
+    );
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ 一键改写";
+  }
 }
 
 // ─── 结果区 ──────────────────────────────────
