@@ -4,6 +4,24 @@ import * as storage from "./lib/storage.js";
 import * as logger from "./lib/logger.js";
 import * as llm from "./lib/llm.js";
 
+// ─── 浏览器能力检测 ────────────────────────
+(function checkBrowserSupport() {
+  const missing = [];
+  if (typeof fetch !== "function") missing.push("fetch");
+  if (!window.crypto?.subtle) missing.push("crypto.subtle");
+  if (!navigator.clipboard?.writeText) missing.push("clipboard");
+  if (typeof localStorage === "undefined") missing.push("localStorage");
+  if (missing.length > 0) {
+    document.body.innerHTML = `
+      <div style="padding:2rem;color:red;font-family:sans-serif;">
+        <h2>浏览器不兼容</h2>
+        <p>当前浏览器缺以下能力：${missing.join(", ")}</p>
+        <p>请使用 Chrome / Edge / Safari 现代版本。</p>
+      </div>`;
+    throw new Error("Unsupported browser");
+  }
+})();
+
 // ─── 设置面板 ─────────────────────────────
 const settingsOverlay = document.getElementById("settings-overlay");
 const btnSettings = document.getElementById("btn-settings");
