@@ -329,6 +329,13 @@ function renderResultsSkeleton(platforms, showBaseline) {
       );
     });
   });
+
+  // 绑定重试按钮
+  container.querySelectorAll(".btn-retry").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      retryOnePlatform(btn.dataset.platform);
+    });
+  });
 }
 
 function setResultState(platformKey, state, content = "") {
@@ -397,6 +404,37 @@ async function adaptOne({ platformKey, promptFile, vars }) {
 
   if (errorMsg) throw new llm.LLMError(errorMsg, status);
   return output;
+}
+
+async function retryOnePlatform(platformKey) {
+  const config = await prompts.loadConfig();
+  const p = config.platforms.find((x) => x.key === platformKey);
+  if (!p) return;
+
+  // 决定输入：润色模式用基准稿,直接模式用原稿
+  const session = collectSession();
+  let input = session.body;
+  if (session.mode === "polish") {
+    const baseline = document.getElementById("baseline-body")?.innerText || "";
+    if (baseline && !baseline.startsWith("❌") && !baseline.startsWith("⏳")) {
+      input = baseline;
+    } else {
+      alert("基准稿尚未生成成功，无法重试单平台。请重新整体适配。");
+      return;
+    }
+  }
+
+  setResultState(platformKey, "loading");
+  try {
+    const out = await adaptOne({
+      platformKey: p.key,
+      promptFile: p.prompt,
+      vars: { INPUT: input, TITLE: session.title },
+    });
+    setResultState(platformKey, "success", out);
+  } catch (e) {
+    setResultState(platformKey, "error", e.message);
+  }
 }
 
 // 启动
