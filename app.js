@@ -90,6 +90,25 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+// 剥 Markdown 语法，得到可粘贴到纯文本场景的版本。
+// 处理：标题、引用、水平线、粗体、斜体、链接、行内代码、列表项编号。
+function stripMarkdown(text) {
+  return text
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s*/gm, "")
+    .replace(/^[-*_]{3,}\s*$/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^[\s]*[-*+]\s+/gm, "")
+    .replace(/^[\s]*\d+\.\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function renderNoKey(main) {
   main.replaceChildren();
   const p = document.createElement("p");
@@ -343,7 +362,8 @@ function renderResultsSkeleton(platforms, showBaseline) {
         <div class="result-actions">
           <button class="btn-regen" data-platform="baseline">换一版</button>
           <button class="btn-clear hidden" data-platform="baseline">清空</button>
-          <button class="btn-copy" data-target="baseline-body" disabled>复制</button>
+          <button class="btn-copy-md" data-target="baseline-body" disabled>复制 MD</button>
+          <button class="btn-copy-txt" data-target="baseline-body" disabled>复制 TXT</button>
         </div>
       </div>
       <div class="warning">⚠ 请人工核对人名、职务、时间、数字、引语</div>
@@ -360,7 +380,8 @@ function renderResultsSkeleton(platforms, showBaseline) {
         <div class="result-actions">
           <button class="btn-regen" data-platform="${p.key}">换一版</button>
           <button class="btn-clear hidden" data-platform="${p.key}">清空</button>
-          <button class="btn-copy" data-target="body-${p.key}" disabled>复制</button>
+          <button class="btn-copy-md" data-target="body-${p.key}" disabled>复制 MD</button>
+          <button class="btn-copy-txt" data-target="body-${p.key}" disabled>复制 TXT</button>
         </div>
       </div>
       <div class="warning">⚠ 请人工核对人名、职务、时间、数字、引语</div>
@@ -371,21 +392,26 @@ function renderResultsSkeleton(platforms, showBaseline) {
 
   container.innerHTML = baselineHtml + `<div class="cards">${cardsHtml}</div>`;
 
-  // 绑定复制按钮（每次重渲染都要重绑）
-  container.querySelectorAll(".btn-copy").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.target;
-      const text = document.getElementById(id)?.innerText || "";
-      navigator.clipboard.writeText(text).then(
-        () => {
-          const orig = btn.textContent;
-          btn.textContent = "✓ 已复制";
-          setTimeout(() => (btn.textContent = orig), 1500);
-        },
-        () => alert("复制失败，请手动选择文本")
-      );
+  // 绑定复制按钮（MD 保留原文，TXT 剥 Markdown 语法）
+  function bindCopyButtons(selector, format) {
+    container.querySelectorAll(selector).forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.target;
+        const raw = document.getElementById(id)?.innerText || "";
+        const text = format === "txt" ? stripMarkdown(raw) : raw;
+        navigator.clipboard.writeText(text).then(
+          () => {
+            const orig = btn.textContent;
+            btn.textContent = "✓ 已复制";
+            setTimeout(() => (btn.textContent = orig), 1500);
+          },
+          () => alert("复制失败，请手动选择文本")
+        );
+      });
     });
-  });
+  }
+  bindCopyButtons(".btn-copy-md", "md");
+  bindCopyButtons(".btn-copy-txt", "txt");
 
   // 绑定「换一版」按钮
   container.querySelectorAll(".btn-regen").forEach((btn) => {
@@ -411,7 +437,7 @@ function setResultState(platformKey, state, content = "") {
   if (!card) return;
 
   const body = document.getElementById(bodyId);
-  const copyBtn = card.querySelector(".btn-copy");
+  const copyBtns = card.querySelectorAll(".btn-copy-md, .btn-copy-txt");
   const regenBtn = card.querySelector(".btn-regen");
   const clearBtn = card.querySelector(".btn-clear");
 
@@ -420,17 +446,17 @@ function setResultState(platformKey, state, content = "") {
 
   if (state === "loading") {
     body.textContent = "⏳ 正在生成……";
-    if (copyBtn) copyBtn.disabled = true;
+    copyBtns.forEach((b) => (b.disabled = true));
     if (regenBtn) regenBtn.disabled = true;
     if (clearBtn) clearBtn.classList.add("hidden");
   } else if (state === "success") {
     body.textContent = content;
-    if (copyBtn) copyBtn.disabled = false;
+    copyBtns.forEach((b) => (b.disabled = false));
     if (regenBtn) regenBtn.disabled = false;
     if (clearBtn) clearBtn.classList.remove("hidden");
   } else if (state === "error") {
     body.textContent = `❌ ${content}`;
-    if (copyBtn) copyBtn.disabled = true;
+    copyBtns.forEach((b) => (b.disabled = true));
     if (regenBtn) regenBtn.disabled = false;
     if (clearBtn) clearBtn.classList.remove("hidden");
   }
@@ -537,13 +563,13 @@ function clearOnePlatform(platformKey) {
   if (!card) return;
 
   const body = document.getElementById(bodyId);
-  const copyBtn = card.querySelector(".btn-copy");
+  const copyBtns = card.querySelectorAll(".btn-copy-md, .btn-copy-txt");
   const regenBtn = card.querySelector(".btn-regen");
   const clearBtn = card.querySelector(".btn-clear");
 
   body.textContent = platformKey === "baseline" ? "等待润色……" : "等待开始……";
   card.classList.remove("loading", "success", "error");
-  if (copyBtn) copyBtn.disabled = true;
+  copyBtns.forEach((b) => (b.disabled = true));
   if (regenBtn) regenBtn.disabled = false;
   if (clearBtn) clearBtn.classList.add("hidden");
 }
