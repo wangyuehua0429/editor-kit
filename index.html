@@ -7,7 +7,43 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <div id="app">加载中……</div>
+  <header class="topbar">
+    <h1>📝 高级编辑小助手</h1>
+    <button id="btn-settings" type="button">⚙ 设置</button>
+  </header>
+
+  <main id="main">
+    <p>主界面装配中……</p>
+  </main>
+
+  <!-- 设置抽屉 -->
+  <div id="settings-overlay" class="hidden">
+    <div class="settings-panel">
+      <h2>设置</h2>
+      <label>
+        API key
+        <input id="setting-api-key" type="password" placeholder="sk-..." autocomplete="off" />
+      </label>
+      <label>
+        Base URL
+        <input id="setting-base-url" type="text" placeholder="https://api.deepseek.com/v1" />
+      </label>
+      <label>
+        模型
+        <input id="setting-model" type="text" placeholder="deepseek-chat" />
+      </label>
+      <label>
+        超时（秒）
+        <input id="setting-timeout" type="number" min="10" max="300" value="60" />
+      </label>
+      <div class="settings-actions">
+        <button id="btn-settings-save" type="button">保存</button>
+        <button id="btn-settings-cancel" type="button">取消</button>
+        <button id="btn-export-logs" type="button">导出日志</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="./app.js"></script>
 </body>
 </html>
