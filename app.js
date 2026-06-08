@@ -32,6 +32,34 @@ const PROVIDERS = [
   }
 })();
 
+// ─── 调试访问控制 ──────────────────────────
+const DEBUG_HASH = '6ece4acae1c25b9faf8b9090c7a65f81b8f70e47c5a6aa4c5f2b3af214e63d3a';
+
+let debugAccessGranted = false;
+
+async function checkDebugAccess() {
+  const token = new URLSearchParams(location.search).get('debug');
+  if (!token) return false;
+
+  try {
+    const msgBuffer = new TextEncoder().encode(token);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashHex = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, '0')).join('');
+    return hashHex === DEBUG_HASH;
+  } catch {
+    return false;
+  }
+}
+
+async function verifyPassword(input) {
+  const msgBuffer = new TextEncoder().encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashHex = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hashHex === DEBUG_HASH;
+}
+
 // ─── 设置面板 ─────────────────────────────
 const settingsOverlay = document.getElementById("settings-overlay");
 const btnSettings = document.getElementById("btn-settings");
@@ -116,6 +144,27 @@ btnReset.addEventListener("click", () => {
 
 // 移除了「点遮罩关设置」监听 —— 误触频繁，用户在输入 API key/URL 时
 // 一旦点到遮罩就关掉，输入丢失。改为只有「保存」「取消」两个按钮可关闭。
+
+// ─── 隐藏调试入口：点版本号 5 次弹出密码框 ────
+{
+  let clickCount = 0;
+  let clickTimer = null;
+  document.querySelector('.topbar-version').addEventListener('click', async () => {
+    clickCount++;
+    clearTimeout(clickTimer);
+    if (clickCount >= 5) {
+      clickCount = 0;
+      const pwd = prompt('请输入调试密码：');
+      if (pwd && await verifyPassword(pwd)) {
+        debugAccessGranted = true;
+        renderMain();
+      } else if (pwd) {
+        alert('密码错误');
+      }
+    }
+    clickTimer = setTimeout(() => { clickCount = 0; }, 2000);
+  });
+}
 
 // ─── 主界面 ──────────────────────────────
 function escapeHtml(s) {
@@ -206,9 +255,10 @@ async function renderMain() {
     body: "",
     tone: config.polish.default_tone,
     must_preserve: "",
-    selected_platforms: config.platforms.map((p) => p.key),
+    selected_platforms: [],
     variant: config.variants?.[0]?.key || "",
   });
+  last.selected_platforms = [];
 
   const variantOptions = (config.variants || []).length > 1
     ? config.variants.map(
@@ -261,7 +311,7 @@ async function renderMain() {
 
       <div class="action-bar">
         <div class="platforms">${platformCheckboxes}</div>
-        <button id="btn-debug-toggle" type="button">🔍 调试</button>
+        ${debugAccessGranted ? '<button id="btn-debug-toggle" type="button">🔍 调试</button>' : ''}
         <button id="btn-polish-only" type="button">📄 仅润色</button>
         <button id="btn-adapt" type="button" class="primary">✨ 一键改写</button>
       </div>
@@ -356,7 +406,8 @@ function bindEditorEvents() {
     }
   });
 
-  document.getElementById("btn-debug-toggle").addEventListener("click", async () => {
+  if (debugAccessGranted) {
+    document.getElementById("btn-debug-toggle").addEventListener("click", async () => {
     debugPanel.classList.toggle("hidden");
     if (!debugPanel.classList.contains("hidden")) {
       await refreshDebugPanel();
@@ -480,6 +531,7 @@ function bindEditorEvents() {
     };
     debugFilled.textContent = prompts.fillPlaceholders(raw, vars);
   }
+  } // end if debugAccessGranted
 }
 
 function debounce(fn, ms) {
@@ -986,5 +1038,9 @@ setResultState = function (platformKey, state, content) {
 };
 
 // 启动
-renderMain();
-console.log("editor-kit ready");
+(async () => {
+  debugAccessGranted = await checkDebugAccess();
+  renderMain();
+  if (debugAccessGranted) console.log("editor-kit ready [debug enabled]");
+  else console.log("editor-kit ready");
+})();

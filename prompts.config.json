@@ -1,8 +1,8 @@
 {
   "variants": [
-    {"key": "zhongxing", "name": "中性"},
-    {"key": "pingshi",   "name": "平实"},
     {"key": "yansu",     "name": "严肃"},
+    {"key": "pingshi",   "name": "平实"},
+    {"key": "zhongxing", "name": "中性"},
     {"key": "huopo",     "name": "活泼"}
   ],
   "platforms": [
@@ -20,7 +20,7 @@
       "yansu":     "polish-yansu.txt",
       "huopo":     "polish-huopo.txt"
     },
-    "tones": ["平实", "中性", "严肃", "活泼"],
+    "tones": ["严肃", "平实", "中性", "活泼"],
     "default_tone": "中性"
   }
 }
