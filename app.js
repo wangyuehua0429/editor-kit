@@ -406,6 +406,17 @@ function bindEditorEvents() {
     }
   });
 
+  function refreshFilledPreview() {
+    const raw = debugRaw.classList.contains("hidden") ? debugRawView.textContent : debugRaw.value;
+    const vars = {
+      INPUT: document.getElementById("input-body").value || "（示例素材文本……）",
+      TITLE: document.getElementById("input-title").value || "（示例标题）",
+      TONE: document.getElementById("input-tone").value,
+      MUST_PRESERVE: document.getElementById("input-must-preserve").value || "（无）",
+    };
+    debugFilled.textContent = prompts.fillPlaceholders(raw, vars);
+  }
+
   if (debugAccessGranted) {
     document.getElementById("btn-debug-toggle").addEventListener("click", async () => {
     debugPanel.classList.toggle("hidden");
@@ -506,7 +517,12 @@ function bindEditorEvents() {
       const f = prompts.resolvePromptFile(p, variant);
       opts.push({ key: p.key, name: p.name + " (" + f + ")", file: f });
     });
+    // 保存当前选中项，重建后恢复
+    const prevKey = debugSelect.selectedOptions[0]?.value;
     debugSelect.innerHTML = opts.map((o) => `<option value="${o.key}" data-file="${o.file}">${o.name}</option>`).join("");
+    if (prevKey && debugSelect.querySelector(`option[value="${prevKey}"]`)) {
+      debugSelect.value = prevKey;
+    }
     if (debugTone) debugTone.value = document.getElementById("input-tone").value;
     updateDebugContent();
   }
@@ -521,16 +537,6 @@ function bindEditorEvents() {
     refreshFilledPreview();
   }
 
-  function refreshFilledPreview() {
-    const raw = debugRaw.classList.contains("hidden") ? debugRawView.textContent : debugRaw.value;
-    const vars = {
-      INPUT: document.getElementById("input-body").value || "（示例素材文本……）",
-      TITLE: document.getElementById("input-title").value || "（示例标题）",
-      TONE: document.getElementById("input-tone").value,
-      MUST_PRESERVE: document.getElementById("input-must-preserve").value || "（无）",
-    };
-    debugFilled.textContent = prompts.fillPlaceholders(raw, vars);
-  }
   } // end if debugAccessGranted
 }
 
@@ -626,6 +632,7 @@ async function onAdaptClick() {
             vars: {
               INPUT: inputForPlatforms,
               TITLE: session.title,
+              TONE: session.tone,
               MUST_PRESERVE: session.must_preserve,
             },
           });
@@ -908,6 +915,7 @@ async function regenerateOnePlatform(platformKey) {
       vars: {
         INPUT: input,
         TITLE: session.title,
+        TONE: session.tone,
         MUST_PRESERVE: session.must_preserve,
       },
     });

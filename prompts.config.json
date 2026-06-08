@@ -6,11 +6,71 @@
     {"key": "huopo",     "name": "活泼"}
   ],
   "platforms": [
-    {"key": "wechat",      "name": "微信公众号", "prompt": "wechat.txt",      "enabled": true, "order": 1},
-    {"key": "weibo",       "name": "微博",       "prompt": "weibo.txt",       "enabled": true, "order": 2},
-    {"key": "xiaohongshu", "name": "小红书",     "prompt": "xiaohongshu.txt", "enabled": true, "order": 3},
-    {"key": "news",        "name": "新闻客户端", "prompt": "news.txt",        "enabled": true, "order": 4},
-    {"key": "paper",       "name": "传统报纸",   "prompt": "paper.txt",       "enabled": true, "order": 5}
+    {
+      "key": "wechat",
+      "name": "微信公众号",
+      "prompt": "wechat-zhongxing.txt",
+      "alt_prompts": {
+        "yansu":     "wechat-yansu.txt",
+        "pingshi":   "wechat-pingshi.txt",
+        "zhongxing": "wechat-zhongxing.txt",
+        "huopo":     "wechat-huopo.txt"
+      },
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "key": "weibo",
+      "name": "微博",
+      "prompt": "weibo-zhongxing.txt",
+      "alt_prompts": {
+        "yansu":     "weibo-yansu.txt",
+        "pingshi":   "weibo-pingshi.txt",
+        "zhongxing": "weibo-zhongxing.txt",
+        "huopo":     "weibo-huopo.txt"
+      },
+      "enabled": true,
+      "order": 2
+    },
+    {
+      "key": "xiaohongshu",
+      "name": "小红书",
+      "prompt": "xiaohongshu-zhongxing.txt",
+      "alt_prompts": {
+        "yansu":     "xiaohongshu-yansu.txt",
+        "pingshi":   "xiaohongshu-pingshi.txt",
+        "zhongxing": "xiaohongshu-zhongxing.txt",
+        "huopo":     "xiaohongshu-huopo.txt"
+      },
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "key": "news",
+      "name": "新闻客户端",
+      "prompt": "news-zhongxing.txt",
+      "alt_prompts": {
+        "yansu":     "news-yansu.txt",
+        "pingshi":   "news-pingshi.txt",
+        "zhongxing": "news-zhongxing.txt",
+        "huopo":     "news-huopo.txt"
+      },
+      "enabled": true,
+      "order": 4
+    },
+    {
+      "key": "paper",
+      "name": "传统报纸",
+      "prompt": "paper-zhongxing.txt",
+      "alt_prompts": {
+        "yansu":     "paper-yansu.txt",
+        "pingshi":   "paper-pingshi.txt",
+        "zhongxing": "paper-zhongxing.txt",
+        "huopo":     "paper-huopo.txt"
+      },
+      "enabled": true,
+      "order": 5
+    }
   ],
   "polish": {
     "prompt": "polish-zhongxing.txt",
