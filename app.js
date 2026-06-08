@@ -256,7 +256,7 @@ async function renderMain() {
     tone: config.polish.default_tone,
     must_preserve: "",
     selected_platforms: [],
-    variant: config.variants?.[0]?.key || "",
+    variant: (config.variants || []).find((v) => v.name === config.polish.default_tone)?.key || config.variants?.[0]?.key || "",
   });
   last.selected_platforms = [];
 
